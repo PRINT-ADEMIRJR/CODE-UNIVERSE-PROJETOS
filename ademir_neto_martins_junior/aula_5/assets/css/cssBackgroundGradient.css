@@ -1,0 +1,35 @@
+body{
+	margin: 0px;
+}
+.bg1{
+	width: 300px;
+	height: 300px;
+	background: red; /* Para navegadores que não aguentam o firefox */
+	background: -webkit-linear-gradient(left, red, yellow); /* Safari */
+	background: -moz-linear-gradient(right, red, yellow); /* Firefox */
+	background: -ms-linear-gradient(right, red, yellow); /* Navegadores Microsoft */
+	background: -o-linear-gradient(right, red, yellow); /* Opera */
+	background: linear-gradient( red, yellow); /* Sintaxe padrão */
+}
+.bg2{
+
+	width: 300px;
+	height: 300px;
+	background: red; /* Para navegadores que não aguentam o firefox */
+	background: -webkit-linear-gradient(left, red, yellow); /* Safari */
+	background: -moz-linear-gradient(right, red, yellow); /* Firefox */
+	background: -ms-linear-gradient(right, red, yellow); /* Navegadores Microsoft */
+	background: -o-linear-gradient(right, red, yellow); /* Opera */
+	background: linear-gradient( to right, red, yellow); /* Sintaxe padrão */
+}
+.bg3{
+	width: 300px;
+	height: 300px;
+	background: red; /* Para navegadores que não aguentam o firefox */
+	background: -webkit-linear-gradient(left top, red, yellow); /* Safari */
+	background: -moz-linear-gradient(bottom right, red, yellow); /* Firefox */
+	background: -ms-linear-gradient(bottom right, red, yellow); /* Navegadores Microsoft */
+	background: -o-linear-gradient(bottom right, red, yellow); /* Opera */
+	background: linear-gradient(to bottom right, red, yellow); /* Sintaxe padrão */
+}
+}

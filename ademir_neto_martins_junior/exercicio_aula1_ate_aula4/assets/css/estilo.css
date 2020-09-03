@@ -1,0 +1,155 @@
+#body{
+	background-color: #778899;
+
+}
+.divcorpo{
+	width: 900px;
+	height: 300px;
+	background-color: white;
+	margin-top: 73px;
+	margin-left: 16%;
+	border-radius: 30px;
+	border: 1px solid black;
+}
+.cabecalho{
+	width: 900px;
+	height: 165px;
+	background-color: white;
+	margin-top: 20px;
+	margin-left: 16%;
+	border-radius: 30px;
+	border: 1px solid black;
+
+	
+}
+.img{
+	margin-top: 4px;
+	margin-left: 6px;
+	border-radius: 30px;
+
+}
+.btcabeca1{
+	width: 260px;
+	height: 30px;
+	border: 20px solid #778899;
+	background-color: #778899;
+	border-radius: 30px;
+
+
+}
+.btcabeca1:hover{
+	background-color: white;
+
+}
+.btcabeca2{
+	width: 260px;
+	height: 30px;
+	border: 20px solid #778899;
+	margin-left: 300px;
+	margin-top: -70px;
+	background-color: #778899;
+	border-radius: 30px;
+
+}
+.btcabeca2:hover{
+	background-color: white;
+
+}
+.btcabeca3{
+	width: 260px;
+	height: 30px;
+	border: 20px solid #778899;
+	margin-left: 600px;
+	margin-top: -70px;
+	background-color: #778899;
+	border-radius: 30px;
+
+}
+.btcabeca3:hover{
+	background-color: white;
+
+}
+/*botões*/
+.btini{
+	margin-left: 45%;
+	padding-top: 5px;
+}
+.btinimenu{
+	color: black;
+	text-decoration: none;
+
+}
+.btinimenu:hover{
+	color: #0000CD;
+}
+/**/
+.btcon{
+	margin-left: 40%;
+	padding-top: 5px;
+	
+}
+.btconmenu{
+	color: black;
+	text-decoration: none;
+
+}
+
+.btconmenu:hover{
+	color: #0000CD;
+}
+/**/
+.btqs{
+	margin-left: 35%;
+	padding-top: 5px;
+
+}
+.btqsmenu{
+	color: black;
+	text-decoration: none;
+	
+}
+.btqsmenu:hover{
+	color: #0000CD;
+}
+
+/*corpo*/
+.divcorpohtml{
+	width: 300px;
+	height: 200px;
+	border: 1px solid black;
+	border-radius: 30px;
+	margin-top: 50px;
+
+}
+.divcorpocss{
+	width: 300px;
+	height: 200px;
+	border: 1px solid black;
+	border-radius: 30px;
+	margin-left: 300px;
+	margin-top: -200px;
+	
+}
+.divcorpojs{
+	width: 300px;
+	height: 200px;
+	border: 1px solid black;
+	border-radius: 30px;
+	margin-left: 600px;
+	margin-top: -200px;
+}
+.imgcss{
+	border-radius: 300px;
+	margin-left: 5px;
+}
+.imghtml{
+	border-radius: 30px;
+	margin-left: 78px;
+	margin-top: 15px;
+
+}
+.imgjs{
+	border-radius: 30px;
+	margin-left: 100px;
+	margin-top: 15px;
+}

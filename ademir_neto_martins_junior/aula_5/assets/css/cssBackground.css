@@ -1,0 +1,12 @@
+body{
+	margin: 0;
+}
+.bg{
+	width: 100%;
+	min-height: 1080px;
+	background-image: url(../img/608.png), url(../img/607.jpg);
+	background-position: left top, right bottom;
+	background-repeat: no-repeat, repeat;
+	background-attachment: fixed;
+	background-size: contain;
+}

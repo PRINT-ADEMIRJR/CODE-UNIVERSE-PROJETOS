@@ -1,0 +1,24 @@
+body{
+
+	background: blue;
+}
+h1{
+	color: red;
+	font-family: Times;
+	font-size: 50px;
+	
+}
+p{
+	margin-left: 500px;
+	font-size: 50px;
+}
+p:hover{
+	color: white;
+	font-family: Verdana;
+	font-size: 100px;
+	border-top: 1px solid #000;
+	border-bottom: 10px solid #000;
+	border-left: 15px solid #000;
+	border-right: 5px solid #000;
+
+}

@@ -1,0 +1,14 @@
+body{
+	background-color: powderblue;
+}
+h1{
+	
+	margin-left: 600px;
+	color: pink;
+	font-family: Verdana;
+}
+p{
+	margin-left: 600px;
+	color: red;
+	font-family: Courier;
+}
