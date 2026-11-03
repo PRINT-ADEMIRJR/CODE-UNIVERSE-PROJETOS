@@ -4,14 +4,19 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import java.util.Locale
@@ -20,10 +25,15 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     private val whatsappPackages = setOf("com.whatsapp", "com.whatsapp.w4b")
     private val teal = Color.rgb(8, 126, 120)
     private var manager: WindowManager? = null
-    private var panel: LinearLayout? = null
-    private var attached = false
+    private var mascot: TextView? = null
+    private var listenButton: TextView? = null
+    private var mascotParams: WindowManager.LayoutParams? = null
+    private var buttonParams: WindowManager.LayoutParams? = null
+    private var mascotAttached = false
+    private var buttonAttached = false
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+    private var isSpeaking = false
     private var lastText = ""
     private var currentPackage: String? = null
 
@@ -38,6 +48,12 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     override fun onInit(status: Int) {
         ttsReady = status == TextToSpeech.SUCCESS
         configureVoice()
+        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) { setSpeaking(true) }
+            override fun onDone(utteranceId: String?) { setSpeaking(false) }
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) { setSpeaking(false) }
+        })
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -45,7 +61,7 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
         if (pkg != null) updateVisibility(pkg)
     }
 
-    override fun onInterrupt() { tts?.stop() }
+    override fun onInterrupt() { stopSpeaking() }
 
     override fun onDestroy() {
         removeControls()
@@ -55,32 +71,70 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     }
 
     private fun buildFloatingControls() {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+        mascot = TextView(this).apply {
+            text = "🤖"
+            textSize = 27f
             gravity = Gravity.CENTER
-            setPadding(dp(7), dp(6), dp(7), dp(6))
-            background = shape(teal, 28)
-            elevation = dp(8).toFloat()
+            contentDescription = "Arraste o Androidzinho até a mensagem que quer ouvir"
+            background = circle(Color.rgb(31, 52, 55))
+            elevation = dp(7).toFloat()
+            setOnTouchListener(::moveMascot)
         }
-        root.addView(control("🔊  OUVIR", 17) { readVisibleText() })
-        root.addView(control("REPETIR", 13) { repeatLast() }.apply {
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-        })
-        root.addView(control("PARAR", 13) { tts?.stop() }.apply {
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-        })
-        panel = root
+        listenButton = TextView(this).apply {
+            text = "🔊 Ouvir"
+            textSize = 14f
+            gravity = Gravity.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            contentDescription = "Ouvir o texto apontado pelo Androidzinho"
+            setPadding(dp(13), dp(10), dp(13), dp(10))
+            background = rounded(teal, 24)
+            elevation = dp(7).toFloat()
+            setOnClickListener { onListenButtonTapped() }
+        }
+
+        val display = resources.displayMetrics
+        val mascotSize = dp(54)
+        mascotParams = overlayParams(mascotSize, mascotSize).apply {
+            gravity = Gravity.TOP or Gravity.LEFT
+            x = display.widthPixels - mascotSize - dp(12)
+            y = (display.heightPixels * .42f).toInt()
+        }
+        buttonParams = overlayParams(dp(104), dp(48)).apply {
+            gravity = Gravity.BOTTOM or Gravity.RIGHT
+            x = dp(12)
+            y = dp(178)
+        }
     }
 
-    private fun control(label: String, size: Int, action: () -> Unit) = TextView(this).apply {
-        text = label
-        textSize = size.toFloat()
-        setTextColor(Color.WHITE)
-        typeface = Typeface.DEFAULT_BOLD
-        gravity = Gravity.CENTER
-        setPadding(dp(15), dp(12), dp(15), dp(12))
-        contentDescription = if (label.contains("OUVIR")) "Ouvir mensagens visíveis no WhatsApp" else "Parar leitura"
-        setOnClickListener { action() }
+    private fun overlayParams(width: Int, height: Int) = WindowManager.LayoutParams(
+        width,
+        height,
+        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        PixelFormat.TRANSLUCENT
+    )
+
+    private fun moveMascot(view: View, event: MotionEvent): Boolean {
+        val params = mascotParams ?: return false
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                view.tag = floatArrayOf(event.rawX, event.rawY, params.x.toFloat(), params.y.toFloat())
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val origin = view.tag as? FloatArray ?: return true
+                val display = resources.displayMetrics
+                val maxX = display.widthPixels - view.width
+                val maxY = display.heightPixels - view.height
+                params.x = (origin[2] + event.rawX - origin[0]).toInt().coerceIn(0, maxX)
+                params.y = (origin[3] + event.rawY - origin[1]).toInt().coerceIn(0, maxY)
+                try { manager?.updateViewLayout(view, params) } catch (_: Exception) { }
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> return true
+        }
+        return false
     }
 
     private fun updateVisibility(packageName: String?) {
@@ -89,81 +143,104 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     }
 
     private fun showControls() {
-        if (attached) return
-        val view = panel ?: return
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = dp(28)
-        }
-        try {
-            manager?.addView(view, params)
-            attached = true
-        } catch (_: Exception) { attached = false }
+        val wm = manager ?: return
+        if (!mascotAttached) try {
+            wm.addView(mascot, mascotParams)
+            mascotAttached = true
+        } catch (_: Exception) { mascotAttached = false }
+        if (!buttonAttached) try {
+            wm.addView(listenButton, buttonParams)
+            buttonAttached = true
+        } catch (_: Exception) { buttonAttached = false }
     }
 
     private fun removeControls() {
-        if (!attached) return
-        try { manager?.removeView(panel) } catch (_: Exception) { }
-        attached = false
+        val wm = manager ?: return
+        if (mascotAttached) try { wm.removeView(mascot) } catch (_: Exception) { }
+        if (buttonAttached) try { wm.removeView(listenButton) } catch (_: Exception) { }
+        mascotAttached = false
+        buttonAttached = false
     }
 
-    private fun readVisibleText() {
+    private fun onListenButtonTapped() {
+        if (isSpeaking) {
+            stopSpeaking()
+            return
+        }
+        readTextAtMascot()
+    }
+
+    private fun readTextAtMascot() {
         val root = rootInActiveWindow
-        if (root == null || root.packageName?.toString() !in whatsappPackages) {
-            sayToast("Abra uma conversa no WhatsApp e toque em OUVIR.")
+        if (root == null || root.packageName?.toString() !in whatsappPackages || currentPackage !in whatsappPackages) {
+            sayToast("Abra uma conversa no WhatsApp e posicione o Androidzinho sobre a mensagem.")
             return
         }
-        val chunks = mutableListOf<String>()
-        collectText(root, chunks)
-        val cleaned = chunks.map { it.replace(Regex("\\s+"), " ").trim() }
-            .filter { it.length > 1 && !isScreenControl(it) }
-            .fold(mutableListOf<String>()) { acc, item ->
-                if (acc.lastOrNull() != item) acc.add(item)
-                acc
-            }
-        val message = cleaned.joinToString(". ").take(4500)
-        if (message.isBlank()) {
-            sayToast("Não consegui localizar o texto. Tente deixar as mensagens visíveis na tela.")
+        val marker = mascot ?: return
+        val location = IntArray(2)
+        marker.getLocationOnScreen(location)
+        val centerX = location[0] + marker.width / 2
+        val centerY = location[1] + marker.height / 2
+        val target = findTextAt(root, centerX, centerY)
+        val selectedText = target?.replace(Regex("\\s+"), " ")?.trim().orEmpty()
+        if (selectedText.isBlank()) {
+            sayToast("Não achei texto nesse ponto. Arraste o Androidzinho para cima da mensagem.")
             return
         }
-        lastText = message
+        lastText = selectedText.take(1200)
         if (!ttsReady) {
-            sayToast("A voz ainda está carregando. Toque em OUVIR novamente.")
+            sayToast("A voz ainda está carregando. Toque em Ouvir novamente.")
             return
         }
         configureVoice()
-        tts?.speak(message, TextToSpeech.QUEUE_FLUSH, null, "whatsapp-screen-read")
+        tts?.speak(lastText, TextToSpeech.QUEUE_FLUSH, null, "whatsapp-selected-text")
     }
 
-    private fun repeatLast() {
-        if (lastText.isBlank()) {
-            sayToast("Toque primeiro em OUVIR.")
-            return
+    private data class TextAtPoint(val text: String, val area: Long, val depth: Int)
+
+    private fun findTextAt(root: AccessibilityNodeInfo, x: Int, y: Int): String? {
+        val matches = mutableListOf<TextAtPoint>()
+        collectTextAtPoint(root, x, y, 0, matches)
+        return matches.sortedWith(compareBy<TextAtPoint> { it.area }.thenByDescending { it.depth })
+            .firstOrNull()?.text
+    }
+
+    private fun collectTextAtPoint(node: AccessibilityNodeInfo, x: Int, y: Int, depth: Int, out: MutableList<TextAtPoint>) {
+        if (node.isVisibleToUser) {
+            val value = (node.text?.toString() ?: node.contentDescription?.toString())
+                ?.replace(Regex("\\s+"), " ")?.trim()
+            if (!value.isNullOrBlank() && !isScreenControl(value)) {
+                val bounds = Rect()
+                node.getBoundsInScreen(bounds)
+                if (bounds.contains(x, y)) {
+                    val area = bounds.width().toLong() * bounds.height().toLong()
+                    out.add(TextAtPoint(value, area, depth))
+                }
+            }
         }
-        if (!ttsReady) return
-        configureVoice()
-        tts?.speak(lastText, TextToSpeech.QUEUE_FLUSH, null, "whatsapp-screen-repeat")
-    }
-
-    private fun collectText(node: AccessibilityNodeInfo, out: MutableList<String>) {
-        node.text?.toString()?.takeIf { it.isNotBlank() }?.let(out::add)
-        if (node.text.isNullOrBlank()) node.contentDescription?.toString()?.takeIf { it.isNotBlank() }?.let(out::add)
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
-            try { collectText(child, out) } finally { child.recycle() }
+            try { collectTextAtPoint(child, x, y, depth + 1, out) } finally { child.recycle() }
         }
     }
 
     private fun isScreenControl(value: String): Boolean {
         val v = value.lowercase(Locale("pt", "BR"))
         val controls = listOf("mensagem", "pesquisar", "mais opções", "anexar", "câmera", "microfone", "enviar", "voltar", "chamada de voz", "videochamada", "emoji", "digite uma mensagem", "online", "visto por último")
-        return controls.any { v == it } || v.length > 1000
+        return controls.any { v == it } || v.length > 1200
+    }
+
+    private fun setSpeaking(speaking: Boolean) {
+        Handler(Looper.getMainLooper()).post {
+            isSpeaking = speaking
+            listenButton?.text = if (speaking) "■ Parar" else "🔊 Ouvir"
+            listenButton?.contentDescription = if (speaking) "Parar leitura" else "Ouvir o texto apontado pelo Androidzinho"
+        }
+    }
+
+    private fun stopSpeaking() {
+        tts?.stop()
+        setSpeaking(false)
     }
 
     private fun configureVoice() {
@@ -179,9 +256,14 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     }
 
     private fun sayToast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-    private fun shape(color: Int, radius: Int) = GradientDrawable().apply {
+    private fun rounded(color: Int, radius: Int) = GradientDrawable().apply {
         setColor(color)
         cornerRadius = dp(radius).toFloat()
+    }
+    private fun circle(color: Int) = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+        setColor(color)
+        setStroke(dp(2), Color.WHITE)
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 }
