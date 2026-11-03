@@ -54,7 +54,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             it.letterSpacing = .08f
         })
         root.addView(text("Ouça o que está escrito no WhatsApp", 27, ink, true), marginTop(7))
-        root.addView(text("Abra a conversa e toque no botão flutuante “OUVIR” para o celular ler as mensagens visíveis.", 17, Color.rgb(77, 96, 99), false), marginTop(12))
+        root.addView(text("No WhatsApp, arraste o Androidzinho até a mensagem que quer escutar e toque em “Ouvir”. Ele lê só o texto apontado.", 17, Color.rgb(77, 96, 99), false), marginTop(12))
 
         val statusBox = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -63,7 +63,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
         status = text("Verificando configuração…", 18, ink, true)
         statusBox.addView(status)
-        statusBox.addView(text("O botão aparece somente quando o WhatsApp está aberto.", 14, Color.rgb(93, 110, 112), false), marginTop(6))
+        statusBox.addView(text("O Androidzinho e o botão pequeno aparecem somente quando o WhatsApp está aberto. Durante a fala, o botão vira “Parar”.", 14, Color.rgb(93, 110, 112), false), marginTop(6))
         root.addView(statusBox, marginTop(24))
 
         root.addView(actionButton("1  ·  ATIVAR BOTÃO DE LEITURA") {
@@ -101,7 +101,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }, marginTop(10))
 
         root.addView(text("Privacidade: a leitura acontece no aparelho, somente quando o botão é tocado. O app não envia mensagens nem precisa de internet.", 13, Color.rgb(93, 110, 112), false), marginTop(24))
-        root.addView(text("Para parar a leitura, toque em PARAR no botão flutuante.", 13, Color.rgb(93, 110, 112), false), marginTop(8))
+        root.addView(text("Para escolher outra mensagem, arraste o Androidzinho. Toque em “Parar” para interromper a fala.", 13, Color.rgb(93, 110, 112), false), marginTop(8))
     }
 
     private fun refreshStatus() {
