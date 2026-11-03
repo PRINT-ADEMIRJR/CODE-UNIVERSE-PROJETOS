@@ -93,7 +93,11 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         root.addView(speed)
         root.addView(actionButton("TESTAR A VOZ") { testVoice() }, marginTop(12))
         root.addView(actionButton("CONFIGURAR VOZ DO CELULAR", secondary = true) {
-            startActivity(Intent(Settings.ACTION_TTS_SETTINGS))
+            try {
+                startActivity(Intent("com.android.settings.TTS_SETTINGS"))
+            } catch (_: Exception) {
+                startActivity(Intent(Settings.ACTION_SETTINGS))
+            }
         }, marginTop(10))
 
         root.addView(text("Privacidade: a leitura acontece no aparelho, somente quando o botão é tocado. O app não envia mensagens nem precisa de internet.", 13, Color.rgb(93, 110, 112), false), marginTop(24))
