@@ -8,8 +8,8 @@ Aplicativo Android que adiciona um botão de leitura sob demanda enquanto o What
 2. Toque em **Ativar botão de leitura**.
 3. Nas configurações de Acessibilidade, ative **Escuta Mensagem — botão de leitura** e confirme.
 4. Volte ao WhatsApp e abra a conversa desejada.
-5. Arraste o Androidzinho sobre a mensagem que quer ouvir e toque no botão pequeno **Ouvir**. Ele lê o texto acessível mais próximo do centro do Androidzinho, em vez de ler a tela inteira.
-6. Durante a fala, o mesmo botão muda para **Parar**. Arraste o Androidzinho para outra mensagem para escolher um novo trecho.
+5. Arraste o Androidzinho sobre a mensagem que quer ouvir e toque nele para mostrar o botão pequeno **Ouvir**. O botão desaparece após 15 segundos sem uso.
+6. Toque em **Ouvir** para ler o texto acessível apontado pelo centro do Androidzinho. Durante a fala, o botão continua visível como **Parar** e desaparece 15 segundos após o fim.
 7. Na tela principal do app, use **Testar a voz**, o controle de velocidade e **Configurar voz do celular** para escolher/baixar uma voz em português.
 
 ## Voz
