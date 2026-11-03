@@ -32,4 +32,4 @@ O app seleciona a melhor voz em português instalada no mecanismo de fala do And
 
 Abra esta pasta no Android Studio recente ou use `gradle :app:assembleDebug` com Android SDK 35 instalado. O APK de depuração ficará em `app/build/outputs/apk/debug/app-debug.apk`.
 
-O workflow `.github/workflows/build-apk.yml` também compila o APK automaticamente a cada envio ao GitHub e disponibiliza `escuta-mensagem-apk` como artefato da execução por 30 dias.
+O workflow `.github/workflows/build-apk.yml` também compila o APK automaticamente a cada envio ao GitHub e disponibiliza `escuta-mensagem-apk` como artefato da execução por 30 dias. O arquivo gerado é um APK de depuração para instalação e teste, não uma versão de publicação na Play Store.
