@@ -8,8 +8,9 @@ Aplicativo Android que adiciona um botão de leitura sob demanda enquanto o What
 2. Toque em **Ativar botão de leitura**.
 3. Nas configurações de Acessibilidade, ative **Escuta Mensagem — botão de leitura** e confirme.
 4. Volte ao WhatsApp e abra a conversa desejada.
-5. Toque em **OUVIR**. Toque em **PARAR** para interromper.
-6. Na tela principal do app, use **Testar a voz**, o controle de velocidade e **Configurar voz do celular** para escolher/baixar uma voz em português.
+5. Arraste o Androidzinho sobre a mensagem que quer ouvir e toque no botão pequeno **Ouvir**. Ele lê o texto acessível mais próximo do centro do Androidzinho, em vez de ler a tela inteira.
+6. Durante a fala, o mesmo botão muda para **Parar**. Arraste o Androidzinho para outra mensagem para escolher um novo trecho.
+7. Na tela principal do app, use **Testar a voz**, o controle de velocidade e **Configurar voz do celular** para escolher/baixar uma voz em português.
 
 ## Voz
 
@@ -19,12 +20,12 @@ O app seleciona a melhor voz em português instalada no mecanismo de fala do And
 
 - Não solicita permissão de internet, contatos ou armazenamento.
 - O serviço de acessibilidade é necessário para localizar o texto que já está visível no WhatsApp.
-- A leitura só começa quando alguém toca em **OUVIR**; não há leitura automática.
+- A leitura só começa quando alguém toca em **Ouvir**; não há leitura automática.
 - O texto lido fica apenas em memória para permitir repetição pelo mecanismo de fala enquanto a leitura está em curso; o app não o envia para rede.
 
 ## Limites
 
-- Lê o texto que o WhatsApp disponibiliza ao serviço de acessibilidade na tela atual. A quantidade e a ordem do texto podem variar com a versão do WhatsApp e com o aparelho.
+- Lê o texto que o WhatsApp disponibiliza ao serviço de acessibilidade na posição apontada pelo Androidzinho. A seleção depende das informações de acessibilidade fornecidas pelo WhatsApp e pode variar por versão e aparelho.
 - Não recupera mensagens antigas ocultas, não abre conversas por conta própria e não interpreta áudio.
 - Em uma conversa aberta, pode ler outros rótulos visíveis junto com as mensagens. O ideal é testar com as conversas mais usadas antes de entregar o telefone para uso diário.
 
