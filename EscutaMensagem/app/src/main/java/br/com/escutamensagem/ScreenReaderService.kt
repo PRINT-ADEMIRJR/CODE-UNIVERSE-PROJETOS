@@ -24,6 +24,8 @@ import java.util.Locale
 class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener {
     private val whatsappPackages = setOf("com.whatsapp", "com.whatsapp.w4b")
     private val teal = Color.rgb(8, 126, 120)
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val hideButtonRunnable = Runnable { hideListenButton() }
     private var manager: WindowManager? = null
     private var mascot: TextView? = null
     private var listenButton: TextView? = null
@@ -75,7 +77,7 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
             text = "🤖"
             textSize = 27f
             gravity = Gravity.CENTER
-            contentDescription = "Arraste o Androidzinho até a mensagem que quer ouvir"
+            contentDescription = "Toque para mostrar Ouvir. Arraste o Androidzinho até a mensagem que quer escutar"
             background = circle(Color.rgb(31, 52, 55))
             elevation = dp(7).toFloat()
             setOnTouchListener(::moveMascot)
@@ -132,7 +134,17 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
                 try { manager?.updateViewLayout(view, params) } catch (_: Exception) { }
                 return true
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> return true
+            MotionEvent.ACTION_UP -> {
+                val origin = view.tag as? FloatArray
+                if (origin != null) {
+                    val dx = event.rawX - origin[0]
+                    val dy = event.rawY - origin[1]
+                    if (kotlin.math.hypot(dx.toDouble(), dy.toDouble()) < dp(10)) revealListenButton()
+                    else if (buttonAttached) scheduleButtonHide()
+                }
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> return true
         }
         return false
     }
@@ -148,14 +160,11 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
             wm.addView(mascot, mascotParams)
             mascotAttached = true
         } catch (_: Exception) { mascotAttached = false }
-        if (!buttonAttached) try {
-            wm.addView(listenButton, buttonParams)
-            buttonAttached = true
-        } catch (_: Exception) { buttonAttached = false }
     }
 
     private fun removeControls() {
         val wm = manager ?: return
+        mainHandler.removeCallbacks(hideButtonRunnable)
         if (mascotAttached) try { wm.removeView(mascot) } catch (_: Exception) { }
         if (buttonAttached) try { wm.removeView(listenButton) } catch (_: Exception) { }
         mascotAttached = false
@@ -167,7 +176,30 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
             stopSpeaking()
             return
         }
+        mainHandler.removeCallbacks(hideButtonRunnable)
         readTextAtMascot()
+        scheduleButtonHide()
+    }
+
+    private fun revealListenButton() {
+        val wm = manager ?: return
+        val button = listenButton ?: return
+        if (!buttonAttached) try {
+            wm.addView(button, buttonParams)
+            buttonAttached = true
+        } catch (_: Exception) { buttonAttached = false }
+        if (buttonAttached) scheduleButtonHide()
+    }
+
+    private fun scheduleButtonHide() {
+        mainHandler.removeCallbacks(hideButtonRunnable)
+        if (!isSpeaking && buttonAttached) mainHandler.postDelayed(hideButtonRunnable, BUTTON_IDLE_TIMEOUT_MS)
+    }
+
+    private fun hideListenButton() {
+        if (isSpeaking || !buttonAttached) return
+        try { manager?.removeView(listenButton) } catch (_: Exception) { }
+        buttonAttached = false
     }
 
     private fun readTextAtMascot() {
@@ -231,10 +263,11 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     }
 
     private fun setSpeaking(speaking: Boolean) {
-        Handler(Looper.getMainLooper()).post {
+        mainHandler.post {
             isSpeaking = speaking
             listenButton?.text = if (speaking) "■ Parar" else "🔊 Ouvir"
             listenButton?.contentDescription = if (speaking) "Parar leitura" else "Ouvir o texto apontado pelo Androidzinho"
+            if (speaking) mainHandler.removeCallbacks(hideButtonRunnable) else scheduleButtonHide()
         }
     }
 
@@ -266,4 +299,8 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
         setStroke(dp(2), Color.WHITE)
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    companion object {
+        private const val BUTTON_IDLE_TIMEOUT_MS = 15_000L
+    }
 }
