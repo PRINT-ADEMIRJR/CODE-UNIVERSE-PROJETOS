@@ -12,8 +12,10 @@ import android.provider.Settings
 import android.view.View
 import android.view.accessibility.AccessibilityManager
 import android.widget.Button
+import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.SeekBar
+import android.widget.Spinner
 import android.widget.TextView
 import android.speech.tts.TextToSpeech
 import java.util.Locale
@@ -63,13 +65,33 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
         status = text("Verificando configuração…", 18, ink, true)
         statusBox.addView(status)
-        statusBox.addView(text("O Androidzinho aparece no WhatsApp. Toque nele para mostrar “Ouvir”; o botão some após 15 segundos sem uso e fica como “Parar” durante a fala.", 14, Color.rgb(93, 110, 112), false), marginTop(6))
+        statusBox.addView(text("No WhatsApp, o robozinho fica visível. O botão Ouvir aparece conforme a duração escolhida abaixo.", 14, Color.rgb(93, 110, 112), false), marginTop(6))
         root.addView(statusBox, marginTop(24))
 
         root.addView(actionButton("1  ·  ATIVAR BOTÃO DE LEITURA") {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }, marginTop(18))
         root.addView(text("Na tela que abrir, escolha “Escuta Mensagem” e ative o serviço. Depois volte para o WhatsApp.", 14, Color.rgb(83, 100, 103), false), marginTop(8))
+
+        root.addView(text("BOTÃO OUVIR", 13, teal, true).also { it.letterSpacing = .08f }, marginTop(24))
+        root.addView(text("Toque ou arraste o robozinho para mostrar o botão. Escolha por quanto tempo ele fica na tela:", 15, ink, false), marginTop(7))
+        val visibilityOptions = listOf("15 segundos", "30 segundos", "45 segundos", "1 minuto", "Sempre visível")
+        val visibilityValues = listOf(15_000L, 30_000L, 45_000L, 60_000L, 0L)
+        val visibilitySpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item, visibilityOptions).also {
+                it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            }
+            val savedValue = preferences().getLong("listen_button_visibility_ms", 15_000L)
+            setSelection(visibilityValues.indexOf(savedValue).takeIf { it >= 0 } ?: 0)
+            contentDescription = "Tempo que o botão Ouvir fica visível"
+            setOnItemSelectedListener(object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    preferences().edit().putLong("listen_button_visibility_ms", visibilityValues[position]).apply()
+                }
+            })
+        }
+        root.addView(visibilitySpinner, marginTop(4))
 
         root.addView(text("VOZ", 13, teal, true).also { it.letterSpacing = .08f }, marginTop(26))
         root.addView(text("A naturalidade depende da voz instalada no aparelho. O app usa a voz em português do próprio Android e favorece uma fala um pouco mais calma.", 15, ink, false), marginTop(7))
@@ -101,7 +123,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }, marginTop(10))
 
         root.addView(text("Privacidade: a leitura acontece no aparelho, somente quando o botão é tocado. O app não envia mensagens nem precisa de internet.", 13, Color.rgb(93, 110, 112), false), marginTop(24))
-        root.addView(text("Para escolher outra mensagem, arraste o Androidzinho. Toque em “Parar” para interromper a fala.", 13, Color.rgb(93, 110, 112), false), marginTop(8))
+        root.addView(text("Durante a fala, o botão fica como “Parar”. Para escolher outra mensagem, arraste o robozinho.", 13, Color.rgb(93, 110, 112), false), marginTop(8))
     }
 
     private fun refreshStatus() {
