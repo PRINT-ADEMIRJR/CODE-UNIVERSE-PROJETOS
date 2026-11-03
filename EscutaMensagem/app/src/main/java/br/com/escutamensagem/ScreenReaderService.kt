@@ -160,6 +160,7 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
             wm.addView(mascot, mascotParams)
             mascotAttached = true
         } catch (_: Exception) { mascotAttached = false }
+        if (buttonVisibilityMs() == ALWAYS_VISIBLE && !buttonAttached) revealListenButton()
     }
 
     private fun removeControls() {
@@ -193,11 +194,12 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
 
     private fun scheduleButtonHide() {
         mainHandler.removeCallbacks(hideButtonRunnable)
-        if (!isSpeaking && buttonAttached) mainHandler.postDelayed(hideButtonRunnable, BUTTON_IDLE_TIMEOUT_MS)
+        val timeout = buttonVisibilityMs()
+        if (!isSpeaking && buttonAttached && timeout > 0L) mainHandler.postDelayed(hideButtonRunnable, timeout)
     }
 
     private fun hideListenButton() {
-        if (isSpeaking || !buttonAttached) return
+        if (isSpeaking || !buttonAttached || buttonVisibilityMs() == ALWAYS_VISIBLE) return
         try { manager?.removeView(listenButton) } catch (_: Exception) { }
         buttonAttached = false
     }
@@ -300,7 +302,11 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
+    private fun buttonVisibilityMs() = getSharedPreferences("voice_settings", MODE_PRIVATE)
+        .getLong("listen_button_visibility_ms", DEFAULT_BUTTON_TIMEOUT_MS)
+
     companion object {
-        private const val BUTTON_IDLE_TIMEOUT_MS = 15_000L
+        private const val DEFAULT_BUTTON_TIMEOUT_MS = 15_000L
+        private const val ALWAYS_VISIBLE = 0L
     }
 }
