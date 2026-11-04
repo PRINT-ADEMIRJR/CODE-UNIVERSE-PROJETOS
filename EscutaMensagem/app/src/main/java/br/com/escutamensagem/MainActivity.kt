@@ -134,7 +134,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             startActivity(Intent(this, CustomAudioActivity::class.java))
         }, marginTop(12))
 
-        root.addView(text("Privacidade: a leitura acontece no aparelho, somente quando o botão é tocado. O app não envia mensagens nem precisa de internet.", 13, Color.rgb(93, 110, 112), false), marginTop(24))
+        root.addView(text("TEXTO TEMPORÁRIO", 13, teal, true).also { it.letterSpacing = .08f }, marginTop(26))
+        root.addView(text("No WhatsApp, coloque o robozinho sobre o campo de digitação e solte. O aro verde mostra que o texto foi guardado por até 1 minuto. Você pode apagar o campo e tocar em Ouvir para escutar o texto guardado. A captura acontece somente no aparelho.", 15, ink, false), marginTop(7))
+
+        root.addView(text("Privacidade: se o robozinho estiver sobre o campo de digitação, o texto pode ficar guardado somente na memória do aparelho por até 1 minuto. Depois é apagado. O app não envia a frase escrita.", 13, Color.rgb(93, 110, 112), false), marginTop(24))
         root.addView(text("Durante a fala, o botão fica como “Parar”. Para escolher outra mensagem, arraste o robozinho.", 13, Color.rgb(93, 110, 112), false), marginTop(8))
     }
 
