@@ -13,6 +13,7 @@ Aplicativo Android que adiciona um botão de leitura sob demanda enquanto o What
 7. Na tela inicial do app, em **Botão Ouvir**, escolha 15, 30, 45 ou 60 segundos, ou **Sempre visível**. O tempo começa quando o botão aparece; durante a fala ele fica visível e a contagem reinicia quando ela termina.
 8. Na tela principal do app, use **Testar a voz**, o controle de velocidade e **Configurar voz do celular** para escolher/baixar uma voz em português.
 9. Para enviar uma frase falada sem mandar o texto, abra **Áudio personalizado**, escreva a frase, teste a voz e toque em **Gerar e compartilhar áudio**. Escolha WhatsApp, selecione a conversa e confirme o envio. O WhatsApp pode apresentar o arquivo como anexo de áudio; o app não envia o texto escrito.
+10. Para guardar uma frase que ainda está no campo de digitação do WhatsApp, posicione o Androidzinho sobre esse campo e solte. O aro verde indica que o texto ficou guardado temporariamente; toque no Androidzinho para mostrar **Ouvir**. A cópia fica apenas na memória do app por até 1 minuto e também pode ser lida depois que o campo for apagado.
 
 ## Voz
 
@@ -22,6 +23,7 @@ O app seleciona a melhor voz em português instalada no mecanismo de fala do And
 
 - Não solicita permissão de internet, contatos ou armazenamento.
 - O áudio personalizado é sintetizado no aparelho e compartilhado como arquivo temporário com acesso de leitura limitado ao app escolhido.
+- O texto do campo de digitação só é guardado quando o Androidzinho está sobre ele. A cópia temporária expira em 1 minuto ou quando o serviço é encerrado.
 - O serviço de acessibilidade é necessário para localizar o texto que já está visível no WhatsApp.
 - A leitura só começa quando alguém toca em **Ouvir**; não há leitura automática.
 - O texto lido fica apenas em memória para permitir repetição pelo mecanismo de fala enquanto a leitura está em curso; o app não o envia para rede.
