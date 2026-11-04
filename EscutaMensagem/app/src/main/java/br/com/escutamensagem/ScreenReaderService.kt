@@ -13,6 +13,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.view.Gravity
@@ -30,6 +31,12 @@ private class RobotMascotView(context: Context) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var mouthHeight = 2f
     private var mouthAnimator: ValueAnimator? = null
+    private var draftProgress = 0f
+
+    fun setDraftProgress(progress: Float) {
+        draftProgress = progress.coerceIn(0f, 1f)
+        invalidate()
+    }
 
     fun setTalking(talking: Boolean) {
         if (talking && mouthAnimator == null) {
@@ -63,6 +70,16 @@ private class RobotMascotView(context: Context) : View(context) {
         paint.strokeWidth = dp(2f)
         paint.color = Color.WHITE
         canvas.drawCircle(cx, cy, min(width, height) / 2f - dp(1.5f), paint)
+
+        if (draftProgress > 0f) {
+            val radius = min(width, height) / 2f - dp(4f)
+            val ring = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = dp(3f)
+            paint.strokeCap = Paint.Cap.ROUND
+            paint.color = Color.rgb(50, 210, 155)
+            canvas.drawArc(ring, -90f, 360f * draftProgress, false, paint)
+        }
 
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = 1.8f * unit
@@ -107,6 +124,19 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     private val teal = Color.rgb(8, 126, 120)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val hideButtonRunnable = Runnable { hideListenButton() }
+    private val draftTimerRunnable = object : Runnable {
+        override fun run() {
+            val remaining = draftExpiresAt - SystemClock.elapsedRealtime()
+            if (remaining <= 0L) {
+                savedDraftText = ""
+                draftExpiresAt = 0L
+                mascot?.setDraftProgress(0f)
+                return
+            }
+            mascot?.setDraftProgress(remaining / DRAFT_RETENTION_MS.toFloat())
+            mainHandler.postDelayed(this, 250L)
+        }
+    }
     private var manager: WindowManager? = null
     private var mascot: RobotMascotView? = null
     private var listenButton: TextView? = null
@@ -119,6 +149,8 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     private var isSpeaking = false
     private var lastText = ""
     private var currentPackage: String? = null
+    private var savedDraftText = ""
+    private var draftExpiresAt = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -142,11 +174,19 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val pkg = rootInActiveWindow?.packageName?.toString() ?: event?.packageName?.toString()
         if (pkg != null) updateVisibility(pkg)
+        if (event?.packageName?.toString() in whatsappPackages && event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
+            val source = event.source
+            if (source != null) {
+                try { captureDraftNodeIfPointed(source) } finally { source.recycle() }
+            }
+        }
     }
 
     override fun onInterrupt() { stopSpeaking() }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(draftTimerRunnable)
+        savedDraftText = ""
         removeControls()
         tts?.stop()
         tts?.shutdown()
@@ -216,8 +256,9 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
                 if (origin != null) {
                     val dx = event.rawX - origin[0]
                     val dy = event.rawY - origin[1]
-                    if (kotlin.math.hypot(dx.toDouble(), dy.toDouble()) < dp(10)) revealListenButton()
-                    else if (buttonAttached) scheduleButtonHide()
+                    val tapped = kotlin.math.hypot(dx.toDouble(), dy.toDouble()) < dp(10)
+                    captureDraftUnderMascot(showMessage = tapped)
+                    if (tapped) revealListenButton() else if (buttonAttached) scheduleButtonHide()
                 }
                 return true
             }
@@ -295,17 +336,78 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
         val centerY = location[1] + marker.height / 2
         val target = findTextAt(root, centerX, centerY)
         val selectedText = target?.replace(Regex("\\s+"), " ")?.trim().orEmpty()
-        if (selectedText.isBlank()) {
-            sayToast("Não achei texto nesse ponto. Arraste o Androidzinho para cima da mensagem.")
+        val textToRead = selectedText.ifBlank {
+            if (savedDraftText.isNotBlank() && SystemClock.elapsedRealtime() < draftExpiresAt) savedDraftText else ""
+        }
+        if (textToRead.isBlank()) {
+            sayToast("Não achei texto nesse ponto. Coloque o Androidzinho sobre uma mensagem ou no campo de texto.")
             return
         }
-        lastText = selectedText.take(1200)
+        lastText = textToRead.take(1200)
         if (!ttsReady) {
             sayToast("A voz ainda está carregando. Toque em Ouvir novamente.")
             return
         }
         configureVoice()
         tts?.speak(lastText, TextToSpeech.QUEUE_FLUSH, null, "whatsapp-selected-text")
+    }
+
+    private fun captureDraftUnderMascot(showMessage: Boolean) {
+        val root = rootInActiveWindow ?: return
+        if (root.packageName?.toString() !in whatsappPackages) return
+        val marker = mascot ?: return
+        val location = IntArray(2)
+        marker.getLocationOnScreen(location)
+        val x = location[0] + marker.width / 2
+        val y = location[1] + marker.height / 2
+        val draft = findEditableTextAt(root, x, y)?.replace(Regex("\\s+"), " ")?.trim().orEmpty()
+        if (draft.isNotBlank()) saveDraft(draft, showMessage)
+    }
+
+    private fun captureDraftNodeIfPointed(node: AccessibilityNodeInfo) {
+        if (!node.isEditable) return
+        val draft = node.text?.toString()?.replace(Regex("\\s+"), " ")?.trim().orEmpty()
+        if (draft.isBlank()) return
+        val bounds = Rect()
+        node.getBoundsInScreen(bounds)
+        val marker = mascot ?: return
+        val location = IntArray(2)
+        marker.getLocationOnScreen(location)
+        val x = location[0] + marker.width / 2
+        val y = location[1] + marker.height / 2
+        if (bounds.contains(x, y)) saveDraft(draft, showMessage = false)
+    }
+
+    private fun findEditableTextAt(root: AccessibilityNodeInfo, x: Int, y: Int): String? {
+        var best: Pair<Long, String>? = null
+        fun walk(node: AccessibilityNodeInfo) {
+            if (!node.isVisibleToUser) return
+            if (node.isEditable) {
+                val bounds = Rect()
+                node.getBoundsInScreen(bounds)
+                val text = node.text?.toString()?.trim().orEmpty()
+                if (bounds.contains(x, y) && text.isNotBlank()) {
+                    val area = bounds.width().toLong() * bounds.height()
+                    if (best == null || area < best!!.first) best = area to text
+                }
+            }
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i) ?: continue
+                try { walk(child) } finally { child.recycle() }
+            }
+        }
+        walk(root)
+        return best?.second
+    }
+
+    private fun saveDraft(text: String, showMessage: Boolean) {
+        savedDraftText = text.take(1200)
+        draftExpiresAt = SystemClock.elapsedRealtime() + DRAFT_RETENTION_MS
+        mainHandler.removeCallbacks(draftTimerRunnable)
+        mascot?.setDraftProgress(1f)
+        mascot?.contentDescription = "Texto do campo guardado por 1 minuto. Toque em Ouvir para ler, ou arraste para escolher outra mensagem."
+        mainHandler.postDelayed(draftTimerRunnable, 250L)
+        if (showMessage) sayToast("Texto guardado por 1 minuto. Pode apagar e tocar em Ouvir.")
     }
 
     private data class TextAtPoint(val text: String, val area: Long, val depth: Int)
@@ -387,5 +489,6 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     companion object {
         private const val DEFAULT_BUTTON_TIMEOUT_MS = 15_000L
         private const val ALWAYS_VISIBLE = 0L
+        private const val DRAFT_RETENTION_MS = 60_000L
     }
 }
