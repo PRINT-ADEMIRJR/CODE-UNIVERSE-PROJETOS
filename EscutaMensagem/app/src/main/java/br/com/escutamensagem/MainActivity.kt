@@ -20,7 +20,6 @@ import android.widget.TextView
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.net.Uri
-import android.provider.Settings
 import android.widget.EditText
 import android.widget.Toast
 import androidx.core.content.FileProvider
