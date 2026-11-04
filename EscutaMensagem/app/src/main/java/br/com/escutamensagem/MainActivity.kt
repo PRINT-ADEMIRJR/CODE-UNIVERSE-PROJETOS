@@ -18,6 +18,13 @@ import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.net.Uri
+import android.provider.Settings
+import android.widget.EditText
+import android.widget.Toast
+import androidx.core.content.FileProvider
+import java.io.File
 import java.util.Locale
 
 class MainActivity : Activity(), TextToSpeech.OnInitListener {
@@ -122,6 +129,12 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             }
         }, marginTop(10))
 
+        root.addView(text("ÁUDIO PERSONALIZADO", 13, teal, true).also { it.letterSpacing = .08f }, marginTop(28))
+        root.addView(text("Digite uma frase e gere um arquivo de áudio com a voz do celular. O texto não é enviado. Depois, escolha a conversa no WhatsApp e toque em enviar.", 15, ink, false), marginTop(7))
+        root.addView(actionButton("CRIAR ÁUDIO PARA WHATSAPP") {
+            startActivity(Intent(this, CustomAudioActivity::class.java))
+        }, marginTop(12))
+
         root.addView(text("Privacidade: a leitura acontece no aparelho, somente quando o botão é tocado. O app não envia mensagens nem precisa de internet.", 13, Color.rgb(93, 110, 112), false), marginTop(24))
         root.addView(text("Durante a fala, o botão fica como “Parar”. Para escolher outra mensagem, arraste o robozinho.", 13, Color.rgb(93, 110, 112), false), marginTop(8))
     }
@@ -190,6 +203,146 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     private fun preferences() = getSharedPreferences("voice_settings", Context.MODE_PRIVATE)
+
+    override fun onDestroy() {
+        tts?.stop()
+        tts?.shutdown()
+        super.onDestroy()
+    }
+}
+
+class CustomAudioActivity : Activity(), TextToSpeech.OnInitListener {
+    private val teal = Color.rgb(8, 126, 120)
+    private var tts: TextToSpeech? = null
+    private var ready = false
+    private lateinit var input: EditText
+    private lateinit var createButton: Button
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        tts = TextToSpeech(this, this)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(28), dp(22), dp(24))
+            setBackgroundColor(Color.rgb(242, 247, 246))
+        }
+        val scroll = android.widget.ScrollView(this).apply { addView(root) }
+        setContentView(scroll)
+        root.addView(TextView(this).apply {
+            text = "Escreva o que o robô vai falar"
+            textSize = 26f
+            setTextColor(Color.rgb(28, 45, 49))
+            setTypeface(typeface, Typeface.BOLD)
+        })
+        root.addView(TextView(this).apply {
+            text = "O app transforma sua frase em um arquivo de áudio. Ele não envia a mensagem escrita. Na próxima etapa, selecione a conversa no WhatsApp e confirme o envio do áudio."
+            textSize = 16f
+            setTextColor(Color.rgb(77, 96, 99))
+        }, spacing(10))
+        input = EditText(this).apply {
+            minLines = 4
+            gravity = android.view.Gravity.TOP or android.view.Gravity.START
+            hint = "Exemplo: Olá, tudo bem? Estou a caminho."
+            textSize = 18f
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = rounded(Color.WHITE, 16)
+            contentDescription = "Texto que será falado no áudio"
+        }
+        root.addView(input, spacing(22))
+        root.addView(Button(this).apply {
+            text = "TESTAR FRASE"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(teal)
+            background = rounded(Color.WHITE, 14)
+            setOnClickListener { speakPreview() }
+        }, spacing(12))
+        createButton = Button(this).apply {
+            text = "GERAR E COMPARTILHAR ÁUDIO"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            background = rounded(teal, 14)
+            setOnClickListener { createAudio() }
+        }
+        root.addView(createButton, spacing(12))
+        root.addView(TextView(this).apply {
+            text = "Dica: o WhatsApp pode apresentar o arquivo compartilhado como anexo de áudio. Você ainda escolhe a conversa e toca em enviar."
+            textSize = 14f
+            setTextColor(Color.rgb(93, 110, 112))
+        }, spacing(22))
+    }
+
+    override fun onInit(status: Int) {
+        ready = status == TextToSpeech.SUCCESS
+        configureVoice()
+        runOnUiThread { if (::createButton.isInitialized) createButton.isEnabled = ready }
+    }
+
+    private fun speakPreview() {
+        val phrase = input.text.toString().trim()
+        if (phrase.isBlank()) { toast("Digite uma frase primeiro."); return }
+        if (!ready) { toast("A voz ainda está carregando."); return }
+        configureVoice()
+        tts?.speak(phrase, TextToSpeech.QUEUE_FLUSH, null, "custom-preview")
+    }
+
+    private fun createAudio() {
+        val phrase = input.text.toString().trim()
+        if (phrase.isBlank()) { toast("Digite uma frase primeiro."); return }
+        if (!ready) { toast("A voz ainda está carregando."); return }
+        createButton.isEnabled = false
+        configureVoice()
+        val folder = File(cacheDir, "shared_audio").apply { mkdirs() }
+        val output = File(folder, "mensagem-${System.currentTimeMillis()}.wav")
+        val utteranceId = "custom-audio-${System.currentTimeMillis()}"
+        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) = Unit
+            override fun onDone(utteranceId: String?) {
+                runOnUiThread {
+                    createButton.isEnabled = true
+                    if (output.exists() && output.length() > 44L) shareAudio(output)
+                    else toast("Não consegui criar o áudio. Tente novamente.")
+                }
+            }
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) {
+                runOnUiThread { createButton.isEnabled = true; toast("Erro ao criar o áudio.") }
+            }
+        })
+        val result = tts?.synthesizeToFile(phrase, Bundle(), output, utteranceId) ?: TextToSpeech.ERROR
+        if (result == TextToSpeech.ERROR) {
+            createButton.isEnabled = true
+            toast("O mecanismo de voz não conseguiu gerar o áudio.")
+        }
+    }
+
+    private fun shareAudio(file: File) {
+        val uri: Uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        val share = Intent(Intent.ACTION_SEND).apply {
+            type = "audio/wav"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            clipData = android.content.ClipData.newUri(contentResolver, "Áudio criado pelo Escuta Mensagem", uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(share, "Enviar áudio"))
+    }
+
+    private fun configureVoice() {
+        val engine = tts ?: return
+        engine.language = Locale("pt", "BR")
+        val best = engine.voices?.filter { it.locale.language == "pt" }
+            ?.sortedWith(compareByDescending<android.speech.tts.Voice> { it.locale.country == "BR" }.thenByDescending { it.quality }.thenBy { it.latency })
+            ?.firstOrNull()
+        if (best != null) engine.voice = best
+        engine.setSpeechRate(getSharedPreferences("voice_settings", Context.MODE_PRIVATE).getFloat("speech_rate", .92f))
+        engine.setPitch(1.0f)
+    }
+
+    private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    private fun spacing(top: Int) = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top) }
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+    private fun rounded(color: Int, radius: Int) = GradientDrawable().apply { setColor(color); cornerRadius = dp(radius).toFloat() }
 
     override fun onDestroy() {
         tts?.stop()
