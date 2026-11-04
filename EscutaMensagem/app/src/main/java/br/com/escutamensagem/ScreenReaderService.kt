@@ -174,7 +174,7 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val pkg = rootInActiveWindow?.packageName?.toString() ?: event?.packageName?.toString()
         if (pkg != null) updateVisibility(pkg)
-        if (event?.packageName?.toString() in whatsappPackages && event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
+        if (event != null && event.packageName?.toString() in whatsappPackages && event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
             val source = event.source
             if (source != null) {
                 try { captureDraftNodeIfPointed(source) } finally { source.recycle() }
