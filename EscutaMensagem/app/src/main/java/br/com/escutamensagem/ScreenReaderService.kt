@@ -2,9 +2,13 @@ package br.com.escutamensagem
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
+import android.animation.ValueAnimator
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
@@ -20,6 +24,83 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.TextView
 import android.widget.Toast
 import java.util.Locale
+import kotlin.math.min
+
+private class RobotMascotView(context: Context) : View(context) {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var mouthHeight = 2f
+    private var mouthAnimator: ValueAnimator? = null
+
+    fun setTalking(talking: Boolean) {
+        if (talking && mouthAnimator == null) {
+            mouthAnimator = ValueAnimator.ofFloat(2f, 8f).apply {
+                duration = 190L
+                repeatMode = ValueAnimator.REVERSE
+                repeatCount = ValueAnimator.INFINITE
+                addUpdateListener {
+                    mouthHeight = it.animatedValue as Float
+                    invalidate()
+                }
+                start()
+            }
+        } else if (!talking) {
+            mouthAnimator?.cancel()
+            mouthAnimator = null
+            mouthHeight = 2f
+            invalidate()
+        }
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val unit = min(width, height).toFloat() / 54f
+        val cx = width / 2f
+        val cy = height / 2f
+        paint.style = Paint.Style.FILL
+        paint.color = Color.rgb(31, 52, 55)
+        canvas.drawCircle(cx, cy, min(width, height) / 2f - dp(1f), paint)
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = dp(2f)
+        paint.color = Color.WHITE
+        canvas.drawCircle(cx, cy, min(width, height) / 2f - dp(1.5f), paint)
+
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 1.8f * unit
+        paint.strokeCap = Paint.Cap.ROUND
+        paint.color = Color.rgb(220, 231, 231)
+        canvas.drawLine(cx, cy - 14f * unit, cx, cy - 20f * unit, paint)
+        paint.style = Paint.Style.FILL
+        paint.color = Color.rgb(255, 93, 93)
+        canvas.drawCircle(cx, cy - 21f * unit, 2.1f * unit, paint)
+
+        val head = RectF(cx - 17f * unit, cy - 14f * unit, cx + 17f * unit, cy + 15f * unit)
+        paint.color = Color.rgb(205, 218, 219)
+        canvas.drawRoundRect(head, 6f * unit, 6f * unit, paint)
+        paint.color = Color.rgb(247, 99, 91)
+        canvas.drawRoundRect(RectF(cx - 19f * unit, cy - 2f * unit, cx - 16f * unit, cy + 8f * unit), 2f * unit, 2f * unit, paint)
+        canvas.drawRoundRect(RectF(cx + 16f * unit, cy - 2f * unit, cx + 19f * unit, cy + 8f * unit), 2f * unit, 2f * unit, paint)
+
+        paint.color = Color.rgb(30, 55, 58)
+        canvas.drawCircle(cx - 7f * unit, cy - 4f * unit, 2.2f * unit, paint)
+        canvas.drawCircle(cx + 7f * unit, cy - 4f * unit, 2.2f * unit, paint)
+
+        val mouthWidth = 17f * unit
+        val mouth = RectF(cx - mouthWidth / 2f, cy + 4f * unit, cx + mouthWidth / 2f, cy + 4f * unit + mouthHeight * unit)
+        paint.color = Color.rgb(37, 56, 58)
+        canvas.drawRoundRect(mouth, 3f * unit, 3f * unit, paint)
+        if (mouthHeight > 4f) {
+            paint.color = Color.rgb(255, 245, 218)
+            canvas.drawRoundRect(RectF(mouth.left + 2f * unit, mouth.top + 1f * unit, mouth.right - 2f * unit, mouth.top + 2.2f * unit), 1f * unit, 1f * unit, paint)
+        }
+    }
+
+    private fun dp(value: Float) = value * resources.displayMetrics.density
+
+    override fun onDetachedFromWindow() {
+        setTalking(false)
+        super.onDetachedFromWindow()
+    }
+}
 
 class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener {
     private val whatsappPackages = setOf("com.whatsapp", "com.whatsapp.w4b")
@@ -27,7 +108,7 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val hideButtonRunnable = Runnable { hideListenButton() }
     private var manager: WindowManager? = null
-    private var mascot: TextView? = null
+    private var mascot: RobotMascotView? = null
     private var listenButton: TextView? = null
     private var mascotParams: WindowManager.LayoutParams? = null
     private var buttonParams: WindowManager.LayoutParams? = null
@@ -73,12 +154,8 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     }
 
     private fun buildFloatingControls() {
-        mascot = TextView(this).apply {
-            text = "🤖"
-            textSize = 27f
-            gravity = Gravity.CENTER
+        mascot = RobotMascotView(this).apply {
             contentDescription = "Toque para mostrar Ouvir. Arraste o Androidzinho até a mensagem que quer escutar"
-            background = circle(Color.rgb(31, 52, 55))
             elevation = dp(7).toFloat()
             setOnTouchListener(::moveMascot)
         }
@@ -166,6 +243,7 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     private fun removeControls() {
         val wm = manager ?: return
         mainHandler.removeCallbacks(hideButtonRunnable)
+        mascot?.setTalking(false)
         if (mascotAttached) try { wm.removeView(mascot) } catch (_: Exception) { }
         if (buttonAttached) try { wm.removeView(listenButton) } catch (_: Exception) { }
         mascotAttached = false
@@ -267,6 +345,7 @@ class ScreenReaderService : AccessibilityService(), TextToSpeech.OnInitListener 
     private fun setSpeaking(speaking: Boolean) {
         mainHandler.post {
             isSpeaking = speaking
+            mascot?.setTalking(speaking)
             listenButton?.text = if (speaking) "■ Parar" else "🔊 Ouvir"
             listenButton?.contentDescription = if (speaking) "Parar leitura" else "Ouvir o texto apontado pelo Androidzinho"
             if (speaking) mainHandler.removeCallbacks(hideButtonRunnable) else scheduleButtonHide()
